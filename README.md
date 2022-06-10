@@ -19,15 +19,15 @@ class User {
 
    // Getters, setters
 
-    public void changeAddress(street: string, city: string) {
+    changeAddress(street: string, city: string) {
         //logic
     }
 
-    public void login(username: string) {
+    login(username: string) {
         //logic
     }
 
-    public void logout(username: string) {
+    logout(username: string) {
         // logic
     }
 }
@@ -80,8 +80,10 @@ class AddressService {
     //logic
   }
 }
-
 ```
+Artık `AddressService`'i daha da güzel oldu. User'a verisi ile değil de sadece `Address` üzerinden işlem yapıcak...
+
+---
 
 
 ## Open–Closed Principle
@@ -89,6 +91,96 @@ class AddressService {
 - Software entities ... should be open for extension, but closed for modification.
 - Değişime kapalı, geliştirmeye açık olması
 
+### Örnek
+- Rectangle adında bir class'ımız var.
+- AreaServise adında bir service'miz var.
+```ts
+class Rectangle {
+    private length: number; 
+    private height: number; 
+    // getters/setters ... 
+}
+
+class AreaService {
+
+    calculateArea(shapes: Rectangle[]) {
+        let area = 0;
+        for (const rect of shapes) {
+            area += rect.getLength() * rect.getHeight();
+        }
+        return area;
+    }
+}
+
+```
+- Yapımız bu şekilde hazırlanmış.
+- Yeni bir feature ekleme ihtiyacımız oluştu. Uygulamamıza `Circle` adında bir özellik daha eklememiz gerekti.
+
+```ts
+class Circle {
+    private radius: number; 
+    // getters/setters ... 
+}
+```
+`AreaService`'i güncellerken aşağıdaki gibi **YAPMAMALIYIZ**
+```ts
+class AreaService {
+
+    calculateArea(shapes: any[]) {
+        let area = 0;
+        for (const shape of shapes) {
+            if(rect instanceOf Rectangle) {
+                area += shape.getLength() * shape.getHeight();
+            } else if(shape instanceOf Circle) {
+                area += shape.getRadius() * shape.getRadius() * Math.PI;
+            }
+        }
+        return area;
+    }
+}
+
+```
+- Nasıl olmalı
+```ts
+interface Shape {
+    getArea(): number;
+}
+
+class Circle implements Shape {
+    private radius: number; 
+    // getters/setters ... 
+
+    getArea(){
+        return this.radius * this.radius * Math.PI;
+    }
+}
+
+class Rectangle {
+    private length: number; 
+    private height: number; 
+    // getters/setters ... 
+     getArea(){
+        return this.length * this.height;
+    }
+}
+
+class AreaService {
+
+    calculateArea(shapes: Shape[]) {
+        let area = 0;
+        for (const shape of shapes) {
+            area += shape.getArea();
+        }
+        return area;
+    }
+}
+```
+### Artıları
+- Yeni bir tür, Circle ekledik
+- Rectangle hala eskisi gibi çalışıyor.
+- AreaService'e calculateArea'yı çağıran fonksiyonlarda herhangi bir değişikliğe gitmedik.
+
+---
 ## Liskov Substitution Principle
 
 - Türeyen sınıf yani alt sınıflar ana(üst) sınıfın tüm özelliklerini ve metotlarını aynı işlevi gösterecek şekilde kullanabilme ve kendine ait yeni özellikler barındırabilmelidir.
@@ -214,3 +306,33 @@ class Nokia3310 extends Phone {
 ## Dependency Inversion Principle
 
 - Sınıflar arası bağımlılıklar olabildiğince az olmalıdır özellikle üst seviye sınıflar alt seviye sınıflara bağımlı olmamalıdır.
+
+### Örnek
+- Backend projemizden örnek verelim `httpRequestService`'i inceleyelim
+```js
+const axios = require("axios");
+const debug = require("debug")("httpRequestService");
+
+module.exports = ({logService}) => ({
+    async request({method, url, headers, data, log, params}) {
+        const response = await axios({method, url, headers, data, params});
+        if (log) {
+            logService.info(log.type, {
+                request: {method, url, headers, data},
+                response: {
+                    status: response.status,
+                    statusText: response.statusText,
+                    data: response.data
+                }
+            });
+        }
+        return response;
+    }
+});
+
+```
+- Buradaki yapı bana göre güzel :)
+- Ama şöyle bir gerçek var. `httpRequestService` logService'e bağımlı durumda. Bu servis'e logService'in yanına slack'e yazma ve email gönderme istenilseydi nasıl yapardık.
+
+- Böyle bir durumda, bu Mesaj servislerinin ortak bir interface'i olması ve bu service'de bunlar array olarak tutulması isteniliyor...
+
